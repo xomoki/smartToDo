@@ -42,22 +42,19 @@ export default function Sidebar({
 
         setUserId(user.id)
 
-        // 組織一覧を取得
-        let orgs = await getOrganizations(user.id)
+        // すべてのユーザーがwevnal組織にアクセスできるようにする
+        const { ensureWevnalOrganizationAccess } = await import('@/lib/organizations')
+        await ensureWevnalOrganizationAccess(user.id)
 
-        // 組織が存在しない場合、特定のユーザーに対して初期組織を作成
-        if (orgs.length === 0 && user.email) {
-          const { createInitialOrganizationForUser } = await import('@/lib/organizations')
-          const initialOrg = await createInitialOrganizationForUser(user.id, user.email)
-          if (initialOrg) {
-            orgs = [initialOrg]
-          }
-        }
+        // 組織一覧を取得（wevnal組織が含まれる）
+        let orgs = await getOrganizations(user.id)
 
         setOrganizations(orgs)
 
         if (orgs.length > 0) {
-          const defaultOrg = orgs[0]
+          // wevnal組織を優先的に選択
+          const wevnalOrg = orgs.find(org => org.slug === 'wevnal')
+          const defaultOrg = wevnalOrg || orgs[0]
           onOrganizationChange(defaultOrg.id)
 
           // チーム一覧を取得

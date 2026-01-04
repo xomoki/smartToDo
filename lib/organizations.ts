@@ -26,28 +26,103 @@ export interface Member {
   team?: string
 }
 
-// 特定のユーザーに対して初期組織を作成
-export async function createInitialOrganizationForUser(userId: string, email: string): Promise<Organization | null> {
-  // 特定のユーザーのメールアドレス
-  const INITIAL_ORG_EMAILS = ['t-morikawa@wevnal.co.jp']
-  
-  if (!INITIAL_ORG_EMAILS.includes(email.toLowerCase())) {
-    return null
-  }
+// すべてのユーザーが「wevnal」組織にアクセスできるようにする
+export async function ensureWevnalOrganizationAccess(userId: string): Promise<Organization | null> {
+  const WEVNAL_SLUG = 'wevnal'
+  const WEVNAL_NAME = 'wevnal'
 
-  // 既に組織が存在するか確認
-  const existingOrgs = await getOrganizations(userId)
-  if (existingOrgs.length > 0) {
-    return null // 既に組織が存在する場合は何もしない
-  }
-
-  // 初期組織を作成
   try {
-    const org = await createOrganization('wevnal', 'wevnal', userId)
-    console.log('Initial organization created for user:', email)
-    return org
+    // まず、wevnal組織が存在するか確認（slugで検索）
+    const { data: existingOrgs, error: searchError } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('slug', WEVNAL_SLUG)
+      .is('deleted_at', null)
+      .limit(1)
+
+    let wevnalOrg: Organization | null = null
+
+    if (existingOrgs && existingOrgs.length > 0) {
+      // wevnal組織が既に存在する
+      wevnalOrg = existingOrgs[0] as Organization
+    } else {
+      // wevnal組織が存在しない場合は作成
+      // 最初のユーザーが作成者となる（adminロール）
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error('認証されていません')
+      }
+
+      const { data: newOrg, error: createError } = await supabase
+        .from('organizations')
+        .insert({
+          name: WEVNAL_NAME,
+          slug: WEVNAL_SLUG,
+          plan: 'free',
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        // 組織作成に失敗した場合（既に存在する可能性がある）
+        console.warn('Failed to create wevnal organization:', createError)
+        // 再度検索を試みる
+        const { data: retryOrgs } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('slug', WEVNAL_SLUG)
+          .is('deleted_at', null)
+          .limit(1)
+        
+        if (retryOrgs && retryOrgs.length > 0) {
+          wevnalOrg = retryOrgs[0] as Organization
+        } else {
+          throw createError
+        }
+      } else {
+        wevnalOrg = newOrg as Organization
+      }
+    }
+
+    if (!wevnalOrg) {
+      return null
+    }
+
+    // ユーザーがwevnal組織のメンバーかどうか確認
+    const { data: memberCheck, error: memberCheckError } = await supabase
+      .from('organization_members')
+      .select('*')
+      .eq('organization_id', wevnalOrg.id)
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (memberCheckError) {
+      console.error('Failed to check organization membership:', memberCheckError)
+      return null
+    }
+
+    // メンバーでない場合は追加
+    if (!memberCheck || memberCheck.length === 0) {
+      const { error: addMemberError } = await supabase
+        .from('organization_members')
+        .insert({
+          organization_id: wevnalOrg.id,
+          user_id: userId,
+          role: 'member', // デフォルトはmember、最初のユーザーはadminになる可能性がある
+          joined_at: new Date().toISOString(),
+        })
+
+      if (addMemberError) {
+        console.error('Failed to add user to wevnal organization:', addMemberError)
+        return null
+      }
+
+      console.log('User added to wevnal organization:', userId)
+    }
+
+    return wevnalOrg
   } catch (error) {
-    console.error('Failed to create initial organization:', error)
+    console.error('Failed to ensure wevnal organization access:', error)
     return null
   }
 }
