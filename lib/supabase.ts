@@ -18,7 +18,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 })
 
 // 開発環境でのみ、ブラウザコンソールからアクセスできるようにする
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  ;(window as any).supabase = supabase
+// クライアントサイドでのみ実行されるようにする
+if (typeof window !== 'undefined') {
+  // クライアントサイドでのみ実行
+  const isDevelopment = 
+    process.env.NODE_ENV === 'development' || 
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  
+  if (isDevelopment) {
+    ;(window as any).supabase = supabase
+    console.log('[Supabase] Client available in browser console as window.supabase')
+  }
 }
 
