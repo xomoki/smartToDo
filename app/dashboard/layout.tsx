@@ -1,6 +1,11 @@
 import type { Metadata } from 'next'
 import AuthGuard from '@/components/AuthGuard'
-import SupabaseDebug from '@/components/SupabaseDebug'
+import dynamic from 'next/dynamic'
+
+// SupabaseDebugを動的インポートして、SSRを無効化
+const SupabaseDebug = dynamic(() => import('@/components/SupabaseDebug'), {
+  ssr: false,
+})
 
 export const metadata: Metadata = {
   title: 'Dashboard - SmartToDo',
