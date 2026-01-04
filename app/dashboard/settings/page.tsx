@@ -4,7 +4,7 @@ import { useState } from 'react'
 import '../globals.css'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
-import { Save, Trash2, Plus, X } from 'lucide-react'
+import { Save, Trash2, Plus, X, Mail, UserPlus, Link as LinkIcon } from 'lucide-react'
 
 export default function SettingsPage() {
   const [selectedOrganization, setSelectedOrganization] = useState('wevnal')
@@ -19,6 +19,9 @@ export default function SettingsPage() {
       email: true,
       slack: false,
       weeklyReport: true,
+      slackWorkspace: '',
+      slackChannel: '',
+      slackWebhookUrl: '',
     },
     integrations: [
       { id: '1', name: 'Jira', enabled: true, status: 'connected' },
@@ -35,6 +38,17 @@ export default function SettingsPage() {
 
   const [newTeamName, setNewTeamName] = useState('')
   const [showAddTeam, setShowAddTeam] = useState(false)
+  
+  // メンバー招待関連
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<'member' | 'manager' | 'admin'>('member')
+  const [inviteTeam, setInviteTeam] = useState('')
+  const [showInviteForm, setShowInviteForm] = useState(false)
+  const [members, setMembers] = useState([
+    { id: '1', name: '田中太郎', email: 'tanaka@example.com', role: 'manager', team: 'Engineering Team A' },
+    { id: '2', name: '佐藤花子', email: 'sato@example.com', role: 'member', team: 'Engineering Team A' },
+    { id: '3', name: '鈴木一郎', email: 'suzuki@example.com', role: 'member', team: 'Sales Team' },
+  ])
 
   const handleSave = () => {
     alert('設定を保存しました（デモモード）')
@@ -54,6 +68,25 @@ export default function SettingsPage() {
       alert(`チーム "${newTeamName}" を追加しました（デモモード）`)
       setNewTeamName('')
       setShowAddTeam(false)
+    }
+  }
+
+  const handleInviteMember = () => {
+    if (inviteEmail.trim() && inviteTeam) {
+      const roleLabels = { member: 'メンバー', manager: 'マネージャー', admin: '管理者' }
+      alert(`${inviteEmail} を ${inviteTeam} に ${roleLabels[inviteRole]} として招待しました（デモモード）`)
+      setInviteEmail('')
+      setInviteRole('member')
+      setInviteTeam('')
+      setShowInviteForm(false)
+    }
+  }
+
+  const handleTestSlackConnection = () => {
+    if (settings.notifications.slackWebhookUrl) {
+      alert('Slack接続をテストしました（デモモード）')
+    } else {
+      alert('Webhook URLを入力してください')
     }
   }
 
@@ -118,6 +151,74 @@ export default function SettingsPage() {
                   />
                   <span>Slack通知を有効にする</span>
                 </label>
+                {settings.notifications.slack && (
+                  <div className="slack-settings">
+                    <div className="slack-setting-item">
+                      <label className="slack-label">ワークスペース名</label>
+                      <input
+                        type="text"
+                        value={settings.notifications.slackWorkspace}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            notifications: {
+                              ...settings.notifications,
+                              slackWorkspace: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="例: wevnal-workspace"
+                        className="slack-input"
+                      />
+                    </div>
+                    <div className="slack-setting-item">
+                      <label className="slack-label">チャンネル名</label>
+                      <input
+                        type="text"
+                        value={settings.notifications.slackChannel}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            notifications: {
+                              ...settings.notifications,
+                              slackChannel: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="例: #smarttodo-notifications"
+                        className="slack-input"
+                      />
+                    </div>
+                    <div className="slack-setting-item">
+                      <label className="slack-label">Webhook URL</label>
+                      <input
+                        type="text"
+                        value={settings.notifications.slackWebhookUrl}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            notifications: {
+                              ...settings.notifications,
+                              slackWebhookUrl: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="https://hooks.slack.com/services/..."
+                        className="slack-input"
+                      />
+                      <p className="slack-hint">
+                        SlackのIncoming Webhook URLを入力してください
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleTestSlackConnection}
+                      className="test-slack-button"
+                    >
+                      <LinkIcon size={16} />
+                      接続をテスト
+                    </button>
+                  </div>
+                )}
                 <label className="settings-option">
                   <input
                     type="checkbox"
@@ -235,6 +336,120 @@ export default function SettingsPage() {
                   />
                   <span>学習機能を有効にする</span>
                 </label>
+              </div>
+            </div>
+
+            {/* メンバー管理 */}
+            <div className="settings-section">
+              <h2 className="settings-section-title">メンバー管理</h2>
+              <div className="members-list">
+                <div className="members-header">
+                  <h3 className="members-subtitle">現在のメンバー</h3>
+                  {!showInviteForm ? (
+                    <button
+                      onClick={() => setShowInviteForm(true)}
+                      className="invite-member-button"
+                    >
+                      <UserPlus size={18} />
+                      メンバーを招待
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setShowInviteForm(false)
+                        setInviteEmail('')
+                        setInviteRole('member')
+                        setInviteTeam('')
+                      }}
+                      className="cancel-button"
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
+                </div>
+                
+                {showInviteForm && (
+                  <div className="invite-member-form">
+                    <div className="invite-form-row">
+                      <label className="invite-label">メールアドレス</label>
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="member@example.com"
+                        className="invite-input"
+                      />
+                    </div>
+                    <div className="invite-form-row">
+                      <label className="invite-label">ロール</label>
+                      <select
+                        value={inviteRole}
+                        onChange={(e) => setInviteRole(e.target.value as 'member' | 'manager' | 'admin')}
+                        className="invite-select"
+                      >
+                        <option value="member">メンバー</option>
+                        <option value="manager">マネージャー</option>
+                        <option value="admin">管理者</option>
+                      </select>
+                    </div>
+                    <div className="invite-form-row">
+                      <label className="invite-label">チーム</label>
+                      <select
+                        value={inviteTeam}
+                        onChange={(e) => setInviteTeam(e.target.value)}
+                        className="invite-select"
+                      >
+                        <option value="">チームを選択</option>
+                        <option value="Engineering Team A">Engineering Team A</option>
+                        <option value="Engineering Team B">Engineering Team B</option>
+                        <option value="Sales Team">Sales Team</option>
+                        <option value="Customer Success">Customer Success</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={handleInviteMember}
+                      className="send-invite-button"
+                      disabled={!inviteEmail.trim() || !inviteTeam}
+                    >
+                      <Mail size={18} />
+                      招待を送信
+                    </button>
+                  </div>
+                )}
+
+                <div className="members-table">
+                  <table className="members-table-content">
+                    <thead>
+                      <tr>
+                        <th>名前</th>
+                        <th>メールアドレス</th>
+                        <th>ロール</th>
+                        <th>チーム</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {members.map((member) => (
+                        <tr key={member.id}>
+                          <td>{member.name}</td>
+                          <td>{member.email}</td>
+                          <td>
+                            <span className={`role-badge role-${member.role}`}>
+                              {member.role === 'member' ? 'メンバー' : 
+                               member.role === 'manager' ? 'マネージャー' : '管理者'}
+                            </span>
+                          </td>
+                          <td>{member.team}</td>
+                          <td>
+                            <button className="remove-member-button">
+                              <X size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
