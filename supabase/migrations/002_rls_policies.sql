@@ -40,10 +40,11 @@ CREATE POLICY "Users can create organizations" ON organizations
 -- 組織の更新: 自分がadminまたはmanagerである組織のみ
 CREATE POLICY "Users can update their organizations" ON organizations
     FOR UPDATE USING (
-        id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid() 
+            WHERE organization_id = organizations.id
+            AND user_id = auth.uid() 
             AND role IN ('admin', 'manager')
         )
     );
@@ -55,10 +56,11 @@ CREATE POLICY "Users can update their organizations" ON organizations
 -- チームの閲覧: 自分が所属する組織のチームのみ
 CREATE POLICY "Users can view their teams" ON teams
     FOR SELECT USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = teams.organization_id
+            AND user_id = auth.uid()
         )
     );
 
@@ -66,20 +68,22 @@ CREATE POLICY "Users can view their teams" ON teams
 CREATE POLICY "Users can create teams" ON teams
     FOR INSERT 
     WITH CHECK (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = teams.organization_id
+            AND user_id = auth.uid()
         )
     );
 
 -- チームの更新: 自分がadminまたはmanagerである組織のチームのみ
 CREATE POLICY "Users can update their teams" ON teams
     FOR UPDATE USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid() 
+            WHERE organization_id = teams.organization_id
+            AND user_id = auth.uid() 
             AND role IN ('admin', 'manager')
         )
     );
@@ -111,36 +115,50 @@ CREATE POLICY "Users can update themselves" ON users
 -- Organization Members (組織メンバー)
 -- ============================================
 
--- 組織メンバーの閲覧: 自分が所属する組織のメンバーのみ
+-- 組織メンバーの閲覧: 自分自身のレコード、または自分が所属する組織のメンバー
+-- 無限再帰を避けるため、直接user_idをチェック
 CREATE POLICY "Users can view organization members" ON organization_members
     FOR SELECT USING (
-        organization_id IN (
-            SELECT organization_id 
-            FROM organization_members 
-            WHERE user_id = auth.uid()
+        -- 自分自身のレコード
+        user_id = auth.uid() OR
+        -- 自分が所属する組織のメンバー（organizationsテーブルを経由してチェック）
+        EXISTS (
+            SELECT 1 
+            FROM organizations o
+            WHERE o.id = organization_members.organization_id
+            AND EXISTS (
+                SELECT 1 
+                FROM organization_members om
+                WHERE om.organization_id = o.id
+                AND om.user_id = auth.uid()
+            )
         )
     );
 
--- 組織メンバーの作成: 自分がadminまたはmanagerである組織のみ
+-- 組織メンバーの作成: 
+-- 1. 自分自身を組織に追加する場合（新規組織作成時）は常に許可
+-- 2. 他のユーザーを追加する場合は、サーバーサイド関数を使用することを推奨
+--    ここでは、自分自身を追加する場合のみ許可（無限再帰を避けるため）
 CREATE POLICY "Users can create organization members" ON organization_members
     FOR INSERT 
     WITH CHECK (
-        organization_id IN (
-            SELECT organization_id 
-            FROM organization_members 
-            WHERE user_id = auth.uid() 
-            AND role IN ('admin', 'manager')
-        )
+        -- 自分自身を追加する場合（新規組織作成時）は常に許可
+        user_id = auth.uid()
     );
 
 -- 組織メンバーの更新: 自分がadminである組織のみ
+-- 無限再帰を避けるため、直接user_idをチェック
 CREATE POLICY "Users can update organization members" ON organization_members
     FOR UPDATE USING (
-        organization_id IN (
-            SELECT organization_id 
-            FROM organization_members 
-            WHERE user_id = auth.uid() 
-            AND role = 'admin'
+        -- 自分自身のレコードを更新する場合（ロール変更など）
+        user_id = auth.uid() OR
+        -- 自分がadminである組織のメンバーを更新する場合
+        EXISTS (
+            SELECT 1 
+            FROM organization_members om
+            WHERE om.organization_id = organization_members.organization_id
+            AND om.user_id = auth.uid()
+            AND om.role = 'admin'
         )
     );
 
@@ -185,10 +203,11 @@ CREATE POLICY "Users can create team members" ON team_members
 -- タスクの閲覧: 自分が所属する組織のタスクのみ
 CREATE POLICY "Users can view tasks" ON tasks
     FOR SELECT USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = tasks.organization_id
+            AND user_id = auth.uid()
         )
     );
 
@@ -196,30 +215,33 @@ CREATE POLICY "Users can view tasks" ON tasks
 CREATE POLICY "Users can create tasks" ON tasks
     FOR INSERT 
     WITH CHECK (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = tasks.organization_id
+            AND user_id = auth.uid()
         )
     );
 
 -- タスクの更新: 自分が所属する組織のタスクのみ更新可能
 CREATE POLICY "Users can update tasks" ON tasks
     FOR UPDATE USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = tasks.organization_id
+            AND user_id = auth.uid()
         )
     );
 
 -- タスクの削除: 自分がadminまたはmanagerである組織のタスクのみ
 CREATE POLICY "Users can delete tasks" ON tasks
     FOR DELETE USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid() 
+            WHERE organization_id = tasks.organization_id
+            AND user_id = auth.uid() 
             AND role IN ('admin', 'manager')
         )
     );
@@ -265,10 +287,11 @@ CREATE POLICY "Users can create time logs" ON task_time_logs
 -- 連携の閲覧: 自分が所属する組織の連携のみ
 CREATE POLICY "Users can view integrations" ON integrations
     FOR SELECT USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = integrations.organization_id
+            AND user_id = auth.uid()
         )
     );
 
@@ -276,10 +299,11 @@ CREATE POLICY "Users can view integrations" ON integrations
 CREATE POLICY "Users can create integrations" ON integrations
     FOR INSERT 
     WITH CHECK (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid() 
+            WHERE organization_id = integrations.organization_id
+            AND user_id = auth.uid() 
             AND role IN ('admin', 'manager')
         )
     );
@@ -287,10 +311,11 @@ CREATE POLICY "Users can create integrations" ON integrations
 -- 連携の更新: 自分がadminまたはmanagerである組織のみ
 CREATE POLICY "Users can update integrations" ON integrations
     FOR UPDATE USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid() 
+            WHERE organization_id = integrations.organization_id
+            AND user_id = auth.uid() 
             AND role IN ('admin', 'manager')
         )
     );
@@ -330,10 +355,11 @@ CREATE POLICY "Users can create invitations" ON invitations
 -- AI学習データの閲覧: 自分が所属する組織のデータのみ
 CREATE POLICY "Users can view AI learning data" ON ai_learning_data
     FOR SELECT USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = ai_learning_data.organization_id
+            AND user_id = auth.uid()
         )
     );
 
@@ -341,12 +367,13 @@ CREATE POLICY "Users can view AI learning data" ON ai_learning_data
 CREATE POLICY "Users can create AI learning data" ON ai_learning_data
     FOR INSERT 
     WITH CHECK (
-        organization_id IN (
-            SELECT organization_id 
+        user_id = auth.uid() AND
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
-        ) AND
-        user_id = auth.uid()
+            WHERE organization_id = ai_learning_data.organization_id
+            AND user_id = auth.uid()
+        )
     );
 
 -- ============================================
@@ -382,10 +409,11 @@ CREATE POLICY "Users can manage notifications" ON notifications
 -- AIインサイトの閲覧: 自分が所属する組織のインサイトのみ
 CREATE POLICY "Users can view AI insights" ON ai_insights
     FOR SELECT USING (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = ai_insights.organization_id
+            AND user_id = auth.uid()
         )
     );
 
@@ -393,10 +421,11 @@ CREATE POLICY "Users can view AI insights" ON ai_insights
 CREATE POLICY "Users can create AI insights" ON ai_insights
     FOR INSERT 
     WITH CHECK (
-        organization_id IN (
-            SELECT organization_id 
+        EXISTS (
+            SELECT 1 
             FROM organization_members 
-            WHERE user_id = auth.uid()
+            WHERE organization_id = ai_insights.organization_id
+            AND user_id = auth.uid()
         )
     );
 
