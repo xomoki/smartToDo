@@ -17,3 +17,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+// 開発環境でのみ、ブラウザコンソールからアクセスできるようにする
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  ;(window as any).supabase = supabase
+}
+
