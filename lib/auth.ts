@@ -20,6 +20,25 @@ export async function signUp(email: string, password: string, name: string) {
   })
 
   if (error) throw error
+
+  // ユーザーが作成されたら、usersテーブルにもレコードを作成
+  if (data.user) {
+    const { error: userError } = await supabase
+      .from('users')
+      .insert({
+        id: data.user.id,
+        email: data.user.email || email,
+        name: name,
+        role: 'member',
+        email_verified: false,
+      })
+
+    if (userError) {
+      console.error('Failed to create user record:', userError)
+      // エラーを投げない（auth.usersには作成されているため）
+    }
+  }
+
   return data
 }
 

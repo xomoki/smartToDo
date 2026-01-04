@@ -50,7 +50,7 @@ export async function getOrganizations(userId: string): Promise<Organization[]> 
 
 // 組織を作成
 export async function createOrganization(name: string, slug: string, userId: string): Promise<Organization> {
-  // 組織を作成
+  // トランザクション的に処理するため、まず組織を作成
   const { data: org, error: orgError } = await supabase
     .from('organizations')
     .insert({
@@ -61,9 +61,12 @@ export async function createOrganization(name: string, slug: string, userId: str
     .select()
     .single()
 
-  if (orgError) throw orgError
+  if (orgError) {
+    console.error('Failed to create organization:', orgError)
+    throw orgError
+  }
 
-  // 作成者を組織メンバーに追加
+  // 作成者を組織メンバーに追加（adminロール）
   const { error: memberError } = await supabase
     .from('organization_members')
     .insert({
@@ -73,7 +76,15 @@ export async function createOrganization(name: string, slug: string, userId: str
       joined_at: new Date().toISOString(),
     })
 
-  if (memberError) throw memberError
+  if (memberError) {
+    console.error('Failed to add organization member:', memberError)
+    // 組織は作成されたがメンバー追加に失敗した場合、組織を削除
+    await supabase
+      .from('organizations')
+      .delete()
+      .eq('id', org.id)
+    throw memberError
+  }
 
   return org
 }
