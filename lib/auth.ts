@@ -69,13 +69,45 @@ export async function getCurrentUser(): Promise<User | null> {
     .single()
 
   if (error) {
-    // usersテーブルに存在しない場合は、auth.usersから情報を取得
-    return {
-      id: user.id,
-      email: user.email || '',
-      name: user.user_metadata?.name || user.email || '',
-      avatar_url: user.user_metadata?.avatar_url,
-      role: 'member',
+    console.warn('User not found in users table, creating from auth:', error)
+    // usersテーブルに存在しない場合は、auth.usersから情報を取得して作成を試みる
+    try {
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || user.email || '',
+          avatar_url: user.user_metadata?.avatar_url,
+          role: 'member',
+          email_verified: user.email_confirmed_at ? true : false,
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        console.error('Failed to create user record:', createError)
+        // 作成に失敗した場合でも、auth.usersから情報を返す
+        return {
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || user.email || '',
+          avatar_url: user.user_metadata?.avatar_url,
+          role: 'member',
+        }
+      }
+
+      return newUser
+    } catch (err) {
+      console.error('Error creating user:', err)
+      // エラーが発生した場合でも、auth.usersから情報を返す
+      return {
+        id: user.id,
+        email: user.email || '',
+        name: user.user_metadata?.name || user.email || '',
+        avatar_url: user.user_metadata?.avatar_url,
+        role: 'member',
+      }
     }
   }
 
