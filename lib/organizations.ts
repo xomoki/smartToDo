@@ -61,6 +61,15 @@ export async function ensureWevnalOrganizationAccess(userId: string): Promise<Or
         throw new Error('認証されていません')
       }
 
+      // 認証状態を再確認
+      const { data: { user: authUser }, error: authCheckError } = await supabase.auth.getUser()
+      if (authCheckError || !authUser) {
+        throw new Error('認証されていません。ログインしてください。')
+      }
+
+      console.log('[ensureWevnalOrganizationAccess] Auth user ID:', authUser.id)
+      console.log('[ensureWevnalOrganizationAccess] Attempting to create organization...')
+
       const { data: newOrg, error: createError } = await supabase
         .from('organizations')
         .insert({
