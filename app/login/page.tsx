@@ -22,7 +22,15 @@ export default function LoginPage() {
     try {
       if (isSignUp) {
         await signUp(email, password, name)
-        alert('アカウントを作成しました。メールを確認してください。')
+        // サインアップ後、自動的にログインしてダッシュボードに遷移
+        try {
+          await signIn(email, password)
+          router.push('/dashboard')
+        } catch (loginError: any) {
+          // メール確認が必要な場合
+          alert('アカウントを作成しました。メールを確認してログインしてください。')
+          router.push('/login')
+        }
       } else {
         await signIn(email, password)
         router.push('/dashboard')

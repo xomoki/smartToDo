@@ -1,78 +1,175 @@
+'use client'
+
 import Link from 'next/link'
-import { readFile } from 'fs/promises'
-import { join } from 'path'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { ArrowRight, Check, Zap, BarChart3, Users, Brain, Shield } from 'lucide-react'
+import './landing.css'
 
-async function getMarkdownContent(filename: string) {
-  try {
-    const filePath = join(process.cwd(), filename)
-    const content = await readFile(filePath, 'utf-8')
-    return content
-  } catch (error) {
-    return null
-  }
-}
-
-export default async function Home() {
-  const elevatorPitch = await getMarkdownContent('elevator-pitch.md')
-
+export default function Home() {
   return (
-    <div className="container">
-      <header className="header">
-        <h1>SmartToDo</h1>
-        <p>AI搭載型チーム生産性統合プラットフォーム</p>
-        <nav className="nav">
-          <Link href="/">ホーム</Link>
-          <Link href="/dashboard">ダッシュボード</Link>
-          <Link href="/elevator-pitch">エレベーターピッチ</Link>
-          <Link href="/business-requirements">ビジネス要件定義書</Link>
-          <Link href="/product-requirements">プロダクト開発要求定義書</Link>
-        </nav>
+    <div className="landing-page">
+      {/* Header */}
+      <header className="landing-header">
+        <div className="landing-header-content">
+          <div className="landing-logo">
+            <Zap className="logo-icon" size={32} />
+            <span className="logo-text">SmartToDo</span>
+          </div>
+          <nav className="landing-nav">
+            <Link href="/login" className="nav-link">
+              ログイン
+            </Link>
+            <Link href="/login" className="nav-button">
+              無料で始める
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      <main className="content">
-        <h1>プロダクト概要</h1>
-        
-        {elevatorPitch ? (
-          <div>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {elevatorPitch}
-            </ReactMarkdown>
+      {/* Hero Section */}
+      <section className="hero-section">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            AI搭載型チーム生産性統合プラットフォーム
+          </h1>
+          <p className="hero-subtitle">
+            Jira、Salesforce、Notionなど、既存ツールからタスクデータを統合し、
+            AIによる分析と予測で、チームの生産性を最大化します。
+          </p>
+          <div className="hero-actions">
+            <Link href="/login" className="cta-button primary">
+              無料で始める
+              <ArrowRight size={20} />
+            </Link>
+            <Link href="/login" className="cta-button secondary">
+              ログイン
+            </Link>
           </div>
-        ) : (
-          <p>ドキュメントを読み込めませんでした。</p>
-        )}
+        </div>
+      </section>
 
-        <div style={{ marginTop: '2rem', padding: '1.5rem', background: '#f0f9ff', borderRadius: '8px', border: '2px solid #3b82f6' }}>
-          <h2 style={{ marginTop: 0, color: '#1e40af' }}>🚀 ダッシュボード</h2>
-          <p>SmartToDoのメインコックピットを体験してください。</p>
-          <Link href="/dashboard" style={{ display: 'inline-block', marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#3b82f6', color: '#fff', borderRadius: '6px', fontWeight: 600, textDecoration: 'none' }}>
-            ダッシュボードを開く →
+      {/* Features Section */}
+      <section className="features-section">
+        <div className="features-content">
+          <h2 className="section-title">主な機能</h2>
+          <div className="features-grid">
+            <div className="feature-card">
+              <div className="feature-icon">
+                <Brain size={32} />
+              </div>
+              <h3 className="feature-title">AIによる自動分析</h3>
+              <p className="feature-description">
+                タスクの自動分類、工数見積もり、週次インサイト生成など、
+                AIがチームの生産性を自動で分析・改善提案します。
+              </p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <BarChart3 size={32} />
+              </div>
+              <h3 className="feature-title">統合ダッシュボード</h3>
+              <p className="feature-description">
+                複数のツールから集約したデータを一つのダッシュボードで可視化。
+                チーム全体の状況をリアルタイムで把握できます。
+              </p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <Users size={32} />
+              </div>
+              <h3 className="feature-title">チーム管理</h3>
+              <p className="feature-description">
+                組織・チーム単位での管理、メンバー招待、権限管理など、
+                柔軟なチーム構成に対応します。
+              </p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <Shield size={32} />
+              </div>
+              <h3 className="feature-title">セキュアなデータ管理</h3>
+              <p className="feature-description">
+                Row Level Securityによる多層セキュリティで、
+                組織ごとのデータを安全に管理します。
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="benefits-section">
+        <div className="benefits-content">
+          <h2 className="section-title">SmartToDoで実現できること</h2>
+          <div className="benefits-list">
+            <div className="benefit-item">
+              <Check className="benefit-icon" size={24} />
+              <div className="benefit-text">
+                <h3>ツール間のデータ統合</h3>
+                <p>Jira、Salesforce、Notionなど、複数のツールのタスクを一元管理</p>
+              </div>
+            </div>
+            <div className="benefit-item">
+              <Check className="benefit-icon" size={24} />
+              <div className="benefit-text">
+                <h3>AIによる自動化</h3>
+                <p>タスク分類、工数見積もり、改善提案を自動化し、作業効率を向上</p>
+              </div>
+            </div>
+            <div className="benefit-item">
+              <Check className="benefit-icon" size={24} />
+              <div className="benefit-text">
+                <h3>データドリブンな意思決定</h3>
+                <p>リアルタイムのKPIとAIインサイトで、根拠に基づいた意思決定を実現</p>
+              </div>
+            </div>
+            <div className="benefit-item">
+              <Check className="benefit-icon" size={24} />
+              <div className="benefit-text">
+                <h3>チーム生産性の可視化</h3>
+                <p>ワークロードヒートマップ、日次トレンドなどで、チームの稼働状況を可視化</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="cta-section">
+        <div className="cta-content">
+          <h2 className="cta-title">今すぐ始めましょう</h2>
+          <p className="cta-subtitle">
+            SmartToDoで、チームの生産性を次のレベルへ
+          </p>
+          <Link href="/login" className="cta-button large">
+            無料で始める
+            <ArrowRight size={24} />
           </Link>
         </div>
+      </section>
 
-        <h2>ドキュメント一覧</h2>
-        <ul>
-          <li>
-            <Link href="/elevator-pitch">エレベーターピッチ</Link> - プロダクトの本質を30秒で伝えるための要約
-          </li>
-          <li>
-            <Link href="/business-requirements">ビジネス要件定義書 (BRD)</Link> - ビジネス背景、課題、目的、KPIを定義
-          </li>
-          <li>
-            <Link href="/product-requirements">プロダクト開発要求定義書 (PRD)</Link> - 機能要件、非機能要件、データモデルを定義
-          </li>
-          <li>
-            <Link href="/wireframe-dashboard">ダッシュボード・ワイヤーフレーム</Link> - UI/UX設計ドキュメント
-          </li>
-        </ul>
-      </main>
-
-      <footer className="footer">
-        <p>© 2024 SmartToDo. All rights reserved.</p>
+      {/* Footer */}
+      <footer className="landing-footer">
+        <div className="footer-content">
+          <div className="footer-logo">
+            <Zap className="logo-icon" size={24} />
+            <span className="logo-text">SmartToDo</span>
+          </div>
+          <div className="footer-links">
+            <Link href="/elevator-pitch" className="footer-link">
+              エレベーターピッチ
+            </Link>
+            <Link href="/business-requirements" className="footer-link">
+              ビジネス要件
+            </Link>
+            <Link href="/product-requirements" className="footer-link">
+              プロダクト要件
+            </Link>
+          </div>
+          <p className="footer-copyright">
+            © 2024 SmartToDo. All rights reserved.
+          </p>
+        </div>
       </footer>
     </div>
   )
 }
-
