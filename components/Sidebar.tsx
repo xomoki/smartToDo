@@ -43,11 +43,20 @@ export default function Sidebar({
         setUserId(user.id)
 
         // すべてのユーザーがwevnal組織にアクセスできるようにする
+        console.log('[Sidebar] Ensuring wevnal organization access for user:', user.id)
         const { ensureWevnalOrganizationAccess } = await import('@/lib/organizations')
-        await ensureWevnalOrganizationAccess(user.id)
+        const wevnalOrg = await ensureWevnalOrganizationAccess(user.id)
+        
+        if (wevnalOrg) {
+          console.log('[Sidebar] Wevnal organization ensured:', wevnalOrg.id)
+        } else {
+          console.warn('[Sidebar] Failed to ensure wevnal organization access')
+        }
 
         // 組織一覧を取得（wevnal組織が含まれる）
+        console.log('[Sidebar] Fetching organizations for user:', user.id)
         let orgs = await getOrganizations(user.id)
+        console.log('[Sidebar] Found organizations:', orgs.length, orgs.map(o => ({ id: o.id, name: o.name, slug: o.slug })))
 
         setOrganizations(orgs)
 
