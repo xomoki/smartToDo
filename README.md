@@ -25,11 +25,36 @@ SmartToDoは、既存ツール（Jira, Salesforce, Notion等）からタスク�
 
 ## 開発環境のセットアップ
 
-```bash
-# 依存関係のインストール
-npm install
+### 1. 依存関係のインストール
 
-# 開発サーバーの起動
+```bash
+npm install
+```
+
+### 2. 環境変数の設定
+
+プロジェクトルートに`.env.local`ファイルを作成し、以下を設定してください：
+
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://fnrthlbgogvxtsfnqodh.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+詳細は[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)を参照してください。
+
+### 3. Supabaseデータベースのセットアップ
+
+1. [Supabase Dashboard](https://app.supabase.com)にログイン
+2. SQL Editorで`supabase/migrations/001_initial_schema.sql`を実行
+3. Settings → APIからAnon Keyを取得して`.env.local`に設定
+
+### 4. 開発サーバーの起動
+
+```bash
 npm run dev
 ```
 
