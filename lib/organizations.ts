@@ -249,3 +249,33 @@ export async function inviteMember(
   // 実際の実装では、ここでメール送信を行う
   console.log(`Invitation sent to ${email} with token: ${token}`)
 }
+
+// 組織メンバーを削除
+export async function removeOrganizationMember(
+  organizationId: string,
+  userId: string
+): Promise<void> {
+  // まず、チームメンバーからも削除
+  const { data: teams } = await supabase
+    .from('teams')
+    .select('id')
+    .eq('organization_id', organizationId)
+
+  if (teams && teams.length > 0) {
+    const teamIds = teams.map(t => t.id)
+    await supabase
+      .from('team_members')
+      .delete()
+      .eq('user_id', userId)
+      .in('team_id', teamIds)
+  }
+
+  // 組織メンバーから削除
+  const { error } = await supabase
+    .from('organization_members')
+    .delete()
+    .eq('organization_id', organizationId)
+    .eq('user_id', userId)
+
+  if (error) throw error
+}
