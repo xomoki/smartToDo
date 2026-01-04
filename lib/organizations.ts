@@ -208,17 +208,24 @@ export async function getOrganizations(userId: string): Promise<Organization[]> 
 
 // 組織を作成
 export async function createOrganization(name: string, slug: string, userId: string): Promise<Organization> {
-  console.log('Creating organization:', { name, slug, userId })
+  console.log('[createOrganization] Starting:', { name, slug, userId })
   
-  // まず認証状態を確認
+  // 認証状態を確認
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
+    console.error('[createOrganization] Auth error:', authError)
     throw new Error('認証されていません。ログインしてください。')
   }
   
-  console.log('Authenticated user:', user.id)
+  if (user.id !== userId) {
+    console.error('[createOrganization] User ID mismatch:', { sessionUserId: user.id, providedUserId: userId })
+    throw new Error('認証ユーザーIDが一致しません')
+  }
+
+  console.log('[createOrganization] Authenticated user:', user.id)
 
   // 組織を作成
+  console.log('[createOrganization] Inserting organization...')
   const { data: org, error: orgError } = await supabase
     .from('organizations')
     .insert({
@@ -230,19 +237,30 @@ export async function createOrganization(name: string, slug: string, userId: str
     .single()
 
   if (orgError) {
-    console.error('Failed to create organization:', orgError)
-    console.error('Error details:', {
+    console.error('[createOrganization] Failed to create organization:', orgError)
+    console.error('[createOrganization] Error details:', {
       message: orgError.message,
       details: orgError.details,
       hint: orgError.hint,
       code: orgError.code,
     })
+    
+    // RLSエラーの場合、より詳細な情報を提供
+    if (orgError.code === '42501') {
+      throw new Error('組織の作成が拒否されました。RLSポリシーが正しく設定されているか確認してください。')
+    }
+    
     throw orgError
   }
 
-  console.log('Organization created:', org.id)
+  if (!org) {
+    throw new Error('組織の作成に失敗しました（データが返されませんでした）')
+  }
+
+  console.log('[createOrganization] Organization created:', org.id)
 
   // 作成者を組織メンバーに追加（adminロール）
+  console.log('[createOrganization] Adding user as organization member...')
   const { error: memberError } = await supabase
     .from('organization_members')
     .insert({
@@ -253,16 +271,33 @@ export async function createOrganization(name: string, slug: string, userId: str
     })
 
   if (memberError) {
-    console.error('Failed to add organization member:', memberError)
+    console.error('[createOrganization] Failed to add organization member:', memberError)
+    console.error('[createOrganization] Member error details:', {
+      message: memberError.message,
+      details: memberError.details,
+      hint: memberError.hint,
+      code: memberError.code,
+    })
+    
     // 組織は作成されたがメンバー追加に失敗した場合、組織を削除
-    await supabase
+    console.log('[createOrganization] Rolling back organization creation...')
+    const { error: deleteError } = await supabase
       .from('organizations')
       .delete()
       .eq('id', org.id)
+    
+    if (deleteError) {
+      console.error('[createOrganization] Failed to rollback organization:', deleteError)
+    }
+    
+    if (memberError.code === '42501') {
+      throw new Error('組織メンバーの追加が拒否されました。RLSポリシーが正しく設定されているか確認してください。')
+    }
+    
     throw memberError
   }
 
-  console.log('Organization member added successfully')
+  console.log('[createOrganization] Organization member added successfully')
   return org
 }
 
