@@ -43,7 +43,17 @@ export default function Sidebar({
         setUserId(user.id)
 
         // 組織一覧を取得
-        const orgs = await getOrganizations(user.id)
+        let orgs = await getOrganizations(user.id)
+
+        // 組織が存在しない場合、特定のユーザーに対して初期組織を作成
+        if (orgs.length === 0 && user.email) {
+          const { createInitialOrganizationForUser } = await import('@/lib/organizations')
+          const initialOrg = await createInitialOrganizationForUser(user.id, user.email)
+          if (initialOrg) {
+            orgs = [initialOrg]
+          }
+        }
+
         setOrganizations(orgs)
 
         if (orgs.length > 0) {
@@ -83,20 +93,44 @@ export default function Sidebar({
   }, [selectedOrganization])
 
   const handleCreateOrganization = async () => {
-    if (newOrgName.trim() && userId) {
-      try {
-        const { createOrganization } = await import('@/lib/organizations')
-        const slug = newOrgName.toLowerCase().replace(/\s+/g, '-')
-        const newOrg = await createOrganization(newOrgName, slug, userId)
-        const orgs = await getOrganizations(userId)
-        setOrganizations(orgs)
-        onOrganizationChange(newOrg.id)
-        setNewOrgName('')
-        setIsCreateOrgOpen(false)
-        alert(`組織 "${newOrgName}" を作成しました`)
-      } catch (error: any) {
-        alert(`エラー: ${error.message}`)
+    if (!newOrgName.trim()) {
+      alert('組織名を入力してください')
+      return
+    }
+
+    if (!userId) {
+      alert('認証されていません。ログインしてください。')
+      return
+    }
+
+    try {
+      const { createOrganization } = await import('@/lib/organizations')
+      const slug = newOrgName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      
+      if (!slug) {
+        alert('有効な組織名を入力してください')
+        return
       }
+
+      const newOrg = await createOrganization(newOrgName.trim(), slug, userId)
+      const orgs = await getOrganizations(userId)
+      setOrganizations(orgs)
+      
+      if (orgs.length > 0) {
+        onOrganizationChange(newOrg.id)
+        
+        // チーム一覧を取得
+        const teamList = await getTeams(newOrg.id)
+        setTeams(teamList)
+      }
+      
+      setNewOrgName('')
+      setIsCreateOrgOpen(false)
+      alert(`組織 "${newOrgName}" を作成しました`)
+    } catch (error: any) {
+      console.error('Failed to create organization:', error)
+      const errorMessage = error.message || '組織の作成に失敗しました'
+      alert(`エラー: ${errorMessage}`)
     }
   }
 

@@ -26,6 +26,32 @@ export interface Member {
   team?: string
 }
 
+// 特定のユーザーに対して初期組織を作成
+export async function createInitialOrganizationForUser(userId: string, email: string): Promise<Organization | null> {
+  // 特定のユーザーのメールアドレス
+  const INITIAL_ORG_EMAILS = ['t-morikawa@wevnal.co.jp']
+  
+  if (!INITIAL_ORG_EMAILS.includes(email.toLowerCase())) {
+    return null
+  }
+
+  // 既に組織が存在するか確認
+  const existingOrgs = await getOrganizations(userId)
+  if (existingOrgs.length > 0) {
+    return null // 既に組織が存在する場合は何もしない
+  }
+
+  // 初期組織を作成
+  try {
+    const org = await createOrganization('wevnal', 'wevnal', userId)
+    console.log('Initial organization created for user:', email)
+    return org
+  } catch (error) {
+    console.error('Failed to create initial organization:', error)
+    return null
+  }
+}
+
 // 組織一覧を取得
 export async function getOrganizations(userId: string): Promise<Organization[]> {
   const { data, error } = await supabase
@@ -43,7 +69,11 @@ export async function getOrganizations(userId: string): Promise<Organization[]> 
     `)
     .eq('user_id', userId)
 
-  if (error) throw error
+  if (error) {
+    // エラーが発生した場合、空配列を返す（組織が存在しない場合も含む）
+    console.warn('Failed to get organizations:', error)
+    return []
+  }
 
   return data.map((item: any) => item.organizations).filter(Boolean)
 }
