@@ -86,7 +86,7 @@ export default function ReportsPage() {
       return result
     }
     
-    return dataByTeam[selectedTeam] || []
+    return dataByTeam[selectedTeam as keyof typeof dataByTeam] || []
   }
 
   const weeklyData = calculateAllTeamsData(weeklyDataByTeam, 'week')
@@ -136,7 +136,7 @@ export default function ReportsPage() {
       }))
     }
 
-    return categoryBreakdownByTeam[selectedTeam] || []
+    return categoryBreakdownByTeam[selectedTeam as keyof typeof categoryBreakdownByTeam] || []
   }
 
   const categoryBreakdown = calculateCategoryBreakdown()

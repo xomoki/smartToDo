@@ -49,6 +49,25 @@ export default function AllTasksPage() {
   const [isEstimatingTime, setIsEstimatingTime] = useState(false)
   const [bulkTasksText, setBulkTasksText] = useState('')
   
+  // メンバーリスト（Settingsページと同じ）
+  const [members] = useState([
+    { id: '1', name: '田中太郎', email: 'tanaka@example.com', role: 'manager', team: 'Engineering Team A' },
+    { id: '2', name: '佐藤花子', email: 'sato@example.com', role: 'member', team: 'Engineering Team A' },
+    { id: '3', name: '鈴木一郎', email: 'suzuki@example.com', role: 'member', team: 'Sales Team' },
+    { id: '4', name: '山田次郎', email: 'yamada@example.com', role: 'member', team: 'Engineering Team B' },
+  ])
+  
+  // 一括登録用のタスクリスト
+  const [bulkTasks, setBulkTasks] = useState<Array<{
+    title: string
+    description: string
+    assignee: string
+    dueDate: string
+    estimatedTime: string
+    category: string
+    priority: 'low' | 'medium' | 'high'
+  }>>([])
+  
   // 進捗更新関連
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editingTask, setEditingTask] = useState<Partial<Task>>({})
@@ -223,27 +242,77 @@ export default function AllTasksPage() {
     }
   }
 
-  const handleBulkAddTasks = () => {
+  const handleBulkAddFromText = () => {
     if (bulkTasksText.trim()) {
       // 改行で分割してタスクを作成
       const lines = bulkTasksText.split('\n').filter(line => line.trim())
-      const newTasks: Task[] = lines.map((line, index) => ({
-        id: `${Date.now()}-${index}`,
+      const newBulkTasks = lines.map((line) => ({
         title: line.trim(),
-        source: 'manual',
-        status: 'todo',
-        assignee: '未割り当て',
-        dueDate: new Date().toISOString().split('T')[0],
-        estimatedTime: 0,
-        actualTime: null,
-        category: 'その他',
+        description: '',
+        assignee: '',
+        dueDate: '',
+        estimatedTime: '',
+        category: '',
         priority: 'medium' as 'low' | 'medium' | 'high',
       }))
-      setTasks([...tasks, ...newTasks])
+      setBulkTasks(newBulkTasks)
       setBulkTasksText('')
-      setShowBulkAddForm(false)
-      alert(`${newTasks.length}件のタスクを追加しました`)
     }
+  }
+
+  const handleBulkTaskChange = (index: number, field: string, value: any) => {
+    const updated = [...bulkTasks]
+    updated[index] = { ...updated[index], [field]: value }
+    setBulkTasks(updated)
+  }
+
+  const handleAddBulkTask = () => {
+    setBulkTasks([...bulkTasks, {
+      title: '',
+      description: '',
+      assignee: '',
+      dueDate: '',
+      estimatedTime: '',
+      category: '',
+      priority: 'medium',
+    }])
+  }
+
+  const handleRemoveBulkTask = (index: number) => {
+    setBulkTasks(bulkTasks.filter((_, i) => i !== index))
+  }
+
+  const handleBulkAddTasks = () => {
+    if (bulkTasks.length === 0) {
+      alert('タスクを追加してください')
+      return
+    }
+
+    const validTasks = bulkTasks.filter(task => task.title.trim())
+    if (validTasks.length === 0) {
+      alert('タイトルが入力されているタスクがありません')
+      return
+    }
+
+    const newTasks: Task[] = validTasks.map((task, index) => ({
+      id: `${Date.now()}-${index}`,
+      title: task.title.trim(),
+      description: task.description,
+      source: 'manual',
+      status: 'todo',
+      assignee: task.assignee || '未割り当て',
+      dueDate: task.dueDate || new Date().toISOString().split('T')[0],
+      estimatedTime: parseFloat(task.estimatedTime) || 0,
+      actualTime: null,
+      category: task.category || 'その他',
+      priority: task.priority,
+    }))
+    
+    setTasks([...tasks, ...newTasks])
+    setBulkTasks([])
+    setBulkTasksText('')
+    setShowBulkAddForm(false)
+    alert(`${newTasks.length}件のタスクを追加しました`)
   }
 
   const handleStartEdit = (task: Task) => {
@@ -430,13 +499,18 @@ export default function AllTasksPage() {
                 <div className="form-row-grid">
                   <div className="form-row">
                     <label>担当者</label>
-                    <input
-                      type="text"
+                    <select
                       value={newTask.assignee}
                       onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
-                      placeholder="担当者名"
                       className="form-input"
-                    />
+                    >
+                      <option value="">未割り当て</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.name}>
+                          {member.name} ({member.team})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="form-row">
                     <label>期限</label>
@@ -542,6 +616,7 @@ export default function AllTasksPage() {
                   onClick={() => {
                     setShowBulkAddForm(false)
                     setBulkTasksText('')
+                    setBulkTasks([])
                   }}
                   className="close-form-button"
                 >
@@ -549,32 +624,169 @@ export default function AllTasksPage() {
                 </button>
               </div>
               <div className="add-task-form">
-                <div className="form-row">
-                  <label>タスク一覧（1行に1タスク）</label>
-                  <textarea
-                    value={bulkTasksText}
-                    onChange={(e) => setBulkTasksText(e.target.value)}
-                    placeholder="タスク1&#10;タスク2&#10;タスク3"
-                    className="form-textarea"
-                    rows={10}
-                  />
-                  <p className="form-hint">1行に1つのタスクを入力してください</p>
-                </div>
-                <div className="form-actions">
-                  <button onClick={handleBulkAddTasks} className="save-task-button">
-                    <Upload size={18} />
-                    一括登録
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowBulkAddForm(false)
-                      setBulkTasksText('')
-                    }}
-                    className="cancel-task-button"
-                  >
-                    キャンセル
-                  </button>
-                </div>
+                {bulkTasks.length === 0 ? (
+                  <>
+                    <div className="form-row">
+                      <label>タスク一覧（1行に1タスク）</label>
+                      <textarea
+                        value={bulkTasksText}
+                        onChange={(e) => setBulkTasksText(e.target.value)}
+                        placeholder="タスク1&#10;タスク2&#10;タスク3"
+                        className="form-textarea"
+                        rows={10}
+                      />
+                      <p className="form-hint">1行に1つのタスクタイトルを入力してください。詳細情報は次のステップで入力できます。</p>
+                    </div>
+                    <div className="form-actions">
+                      <button 
+                        onClick={handleBulkAddFromText} 
+                        className="save-task-button"
+                        disabled={!bulkTasksText.trim()}
+                      >
+                        <FileText size={18} />
+                        タスクを展開
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowBulkAddForm(false)
+                          setBulkTasksText('')
+                        }}
+                        className="cancel-task-button"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="bulk-tasks-header">
+                      <h4>タスク詳細入力 ({bulkTasks.length}件)</h4>
+                      <button
+                        onClick={handleAddBulkTask}
+                        className="add-bulk-task-button"
+                      >
+                        <Plus size={16} />
+                        タスクを追加
+                      </button>
+                    </div>
+                    <div className="bulk-tasks-list">
+                      {bulkTasks.map((task, index) => (
+                        <div key={index} className="bulk-task-item">
+                          <div className="bulk-task-item-header">
+                            <span className="bulk-task-number">タスク {index + 1}</span>
+                            {bulkTasks.length > 1 && (
+                              <button
+                                onClick={() => handleRemoveBulkTask(index)}
+                                className="remove-bulk-task-button"
+                                title="このタスクを削除"
+                              >
+                                <X size={16} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="bulk-task-form">
+                            <div className="form-row">
+                              <label>タイトル *</label>
+                              <input
+                                type="text"
+                                value={task.title}
+                                onChange={(e) => handleBulkTaskChange(index, 'title', e.target.value)}
+                                placeholder="タスクタイトルを入力"
+                                className="form-input"
+                              />
+                            </div>
+                            <div className="form-row">
+                              <label>説明</label>
+                              <textarea
+                                value={task.description}
+                                onChange={(e) => handleBulkTaskChange(index, 'description', e.target.value)}
+                                placeholder="タスクの説明を入力"
+                                className="form-textarea"
+                                rows={2}
+                              />
+                            </div>
+                            <div className="form-row-grid">
+                              <div className="form-row">
+                                <label>担当者</label>
+                                <select
+                                  value={task.assignee}
+                                  onChange={(e) => handleBulkTaskChange(index, 'assignee', e.target.value)}
+                                  className="form-input"
+                                >
+                                  <option value="">未割り当て</option>
+                                  {members.map((member) => (
+                                    <option key={member.id} value={member.name}>
+                                      {member.name} ({member.team})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="form-row">
+                                <label>期限</label>
+                                <input
+                                  type="date"
+                                  value={task.dueDate}
+                                  onChange={(e) => handleBulkTaskChange(index, 'dueDate', e.target.value)}
+                                  className="form-input"
+                                />
+                              </div>
+                              <div className="form-row">
+                                <label>見積もり時間（時間）</label>
+                                <input
+                                  type="number"
+                                  value={task.estimatedTime}
+                                  onChange={(e) => handleBulkTaskChange(index, 'estimatedTime', e.target.value)}
+                                  placeholder="0"
+                                  className="form-input"
+                                  min="0"
+                                  step="0.5"
+                                />
+                              </div>
+                              <div className="form-row">
+                                <label>カテゴリー</label>
+                                <input
+                                  type="text"
+                                  value={task.category}
+                                  onChange={(e) => handleBulkTaskChange(index, 'category', e.target.value)}
+                                  placeholder="開発、会議、ドキュメント等"
+                                  className="form-input"
+                                />
+                              </div>
+                              <div className="form-row">
+                                <label>優先度</label>
+                                <select
+                                  value={task.priority}
+                                  onChange={(e) => handleBulkTaskChange(index, 'priority', e.target.value as 'low' | 'medium' | 'high')}
+                                  className="form-input"
+                                >
+                                  <option value="low">Low</option>
+                                  <option value="medium">Medium</option>
+                                  <option value="high">High</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="form-actions">
+                      <button onClick={handleBulkAddTasks} className="save-task-button">
+                        <Upload size={18} />
+                        一括登録 ({bulkTasks.filter(t => t.title.trim()).length}件)
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowBulkAddForm(false)
+                          setBulkTasksText('')
+                          setBulkTasks([])
+                        }}
+                        className="cancel-task-button"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -607,12 +819,18 @@ export default function AllTasksPage() {
                     </td>
                     <td>
                       {editingTaskId === task.id ? (
-                        <input
-                          type="text"
+                        <select
                           value={editingTask.assignee || ''}
                           onChange={(e) => setEditingTask({ ...editingTask, assignee: e.target.value })}
-                          className="edit-input"
-                        />
+                          className="edit-select"
+                        >
+                          <option value="">未割り当て</option>
+                          {members.map((member) => (
+                            <option key={member.id} value={member.name}>
+                              {member.name}
+                            </option>
+                          ))}
+                        </select>
                       ) : (
                         task.assignee
                       )}

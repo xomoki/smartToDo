@@ -39,8 +39,13 @@ OPENAI_API_KEY=your_openai_api_key_here
 ### SQL Editorでの実行
 
 1. Supabase Dashboardで**SQL Editor**を開く
-2. `supabase/migrations/001_initial_schema.sql`の内容を貼り付け
-3. **Run**ボタンをクリック
+2. **New Query**をクリック
+3. `supabase/migrations/001_initial_schema.sql`ファイルを開く
+4. **ファイルの内容全体をコピー**（ファイルパスではなく、SQLの内容自体）
+5. SQL Editorのエディタに**貼り付け**
+6. **Run**ボタン（または Ctrl+Enter / Cmd+Enter）をクリック
+
+**重要**: ファイルパスを入力するのではなく、SQLの内容をコピー&ペーストしてください。
 
 ### 確認
 
