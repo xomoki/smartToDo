@@ -161,29 +161,40 @@ export async function ensureWevnalOrganizationAccess(userId: string): Promise<Or
 }
 
 // 組織一覧を取得
+// 注意: organization_membersのSELECTポリシーが自分自身のみ許可するため、
+// 直接organization_membersから取得する方法では他のメンバーが見えない
+// そのため、organizationsテーブルから直接取得する
 export async function getOrganizations(userId: string): Promise<Organization[]> {
-  const { data, error } = await supabase
+  // まず、自分がメンバーである組織のIDを取得
+  const { data: memberData, error: memberError } = await supabase
     .from('organization_members')
-    .select(`
-      organization_id,
-      organizations (
-        id,
-        name,
-        slug,
-        plan,
-        created_at,
-        updated_at
-      )
-    `)
+    .select('organization_id')
     .eq('user_id', userId)
 
-  if (error) {
-    // エラーが発生した場合、空配列を返す（組織が存在しない場合も含む）
-    console.warn('Failed to get organizations:', error)
+  if (memberError) {
+    console.warn('Failed to get organization members:', memberError)
     return []
   }
 
-  return data.map((item: any) => item.organizations).filter(Boolean)
+  if (!memberData || memberData.length === 0) {
+    return []
+  }
+
+  const orgIds = memberData.map(m => m.organization_id)
+
+  // 組織情報を取得
+  const { data: orgData, error: orgError } = await supabase
+    .from('organizations')
+    .select('*')
+    .in('id', orgIds)
+    .is('deleted_at', null)
+
+  if (orgError) {
+    console.warn('Failed to get organizations:', orgError)
+    return []
+  }
+
+  return (orgData || []) as Organization[]
 }
 
 // 組織を作成

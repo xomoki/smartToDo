@@ -16,13 +16,13 @@
 
 ### ステップ2: 修正されたポリシーを適用
 
-1. `supabase/migrations/010_final_no_recursion_fix.sql`の内容をコピー
+1. `supabase/migrations/011_ultimate_no_recursion_fix.sql`の内容をコピー
 2. SQL Editorに貼り付けて実行
 
-**重要**: `010_final_no_recursion_fix.sql`は無限再帰を完全に解決した最新バージョンです。
-- `organization_members`のSELECTポリシーは、`organizations`テーブルを経由してチェックしますが、`organization_members`を一切参照しません
-- `organizations`テーブルが閲覧可能 = 自分がその組織のメンバーであるため、その組織のメンバーも閲覧可能とみなします
-- これにより、無限再帰が完全に回避されます
+**重要**: `011_ultimate_no_recursion_fix.sql`は無限再帰を完全に解決した最新バージョンです。
+- `organization_members`のSELECTポリシーは、自分自身のレコードのみ許可します（`user_id = auth.uid()`）
+- これにより、`organization_members`が`organizations`を参照し、`organizations`が`organization_members`を参照する循環参照を完全に回避します
+- アプリケーション側で、`organization_members`から組織IDを取得し、`organizations`テーブルから直接組織情報を取得する方法を使用します
 
 ### ステップ3: ポリシーの確認
 
