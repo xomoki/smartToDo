@@ -34,129 +34,96 @@ export async function ensureWevnalOrganizationAccess(userId: string): Promise<Or
   console.log('[ensureWevnalOrganizationAccess] Starting for user:', userId)
 
   try {
-    // まず、wevnal組織が存在するか確認（slugで検索）
-    console.log('[ensureWevnalOrganizationAccess] Checking if wevnal organization exists...')
-    const { data: existingOrgs, error: searchError } = await supabase
-      .from('organizations')
-      .select('*')
-      .eq('slug', WEVNAL_SLUG)
-      .is('deleted_at', null)
+    // 認証状態を確認
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      console.error('[ensureWevnalOrganizationAccess] Auth error:', authError)
+      return null
+    }
+
+    if (user.id !== userId) {
+      console.error('[ensureWevnalOrganizationAccess] User ID mismatch')
+      return null
+    }
+
+    // まず、wevnal組織が存在するか確認（organization_membersから検索）
+    // 注意: RLSポリシーのため、自分がメンバーでない組織は見えない
+    console.log('[ensureWevnalOrganizationAccess] Checking if user is already a member...')
+    const { data: existingMembers, error: memberSearchError } = await supabase
+      .from('organization_members')
+      .select(`
+        organization_id,
+        organizations (
+          id,
+          name,
+          slug,
+          plan,
+          created_at,
+          updated_at
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('organizations.slug', WEVNAL_SLUG)
       .limit(1)
 
-    if (searchError) {
-      console.error('[ensureWevnalOrganizationAccess] Error searching for organization:', searchError)
+    if (memberSearchError) {
+      console.error('[ensureWevnalOrganizationAccess] Error searching for membership:', memberSearchError)
     }
 
     let wevnalOrg: Organization | null = null
 
-    if (existingOrgs && existingOrgs.length > 0) {
-      // wevnal組織が既に存在する
-      wevnalOrg = existingOrgs[0] as Organization
-      console.log('[ensureWevnalOrganizationAccess] Found existing wevnal organization:', wevnalOrg.id)
-    } else {
-      // wevnal組織が存在しない場合は作成
-      console.log('[ensureWevnalOrganizationAccess] Creating wevnal organization...')
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        throw new Error('認証されていません')
-      }
-
-      // 認証状態を再確認
-      const { data: { user: authUser }, error: authCheckError } = await supabase.auth.getUser()
-      if (authCheckError || !authUser) {
-        throw new Error('認証されていません。ログインしてください。')
-      }
-
-      console.log('[ensureWevnalOrganizationAccess] Auth user ID:', authUser.id)
-      console.log('[ensureWevnalOrganizationAccess] Attempting to create organization...')
-
-      const { data: newOrg, error: createError } = await supabase
-        .from('organizations')
-        .insert({
-          name: WEVNAL_NAME,
-          slug: WEVNAL_SLUG,
-          plan: 'free',
-        })
-        .select()
-        .single()
-
-      if (createError) {
-        // 組織作成に失敗した場合（既に存在する可能性がある）
-        console.warn('[ensureWevnalOrganizationAccess] Failed to create wevnal organization:', createError)
-        // 再度検索を試みる
-        const { data: retryOrgs, error: retryError } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('slug', WEVNAL_SLUG)
-          .is('deleted_at', null)
-          .limit(1)
-        
-        if (retryError) {
-          console.error('[ensureWevnalOrganizationAccess] Error retrying search:', retryError)
-        }
-        
-        if (retryOrgs && retryOrgs.length > 0) {
-          wevnalOrg = retryOrgs[0] as Organization
-          console.log('[ensureWevnalOrganizationAccess] Found organization on retry:', wevnalOrg.id)
-        } else {
-          console.error('[ensureWevnalOrganizationAccess] Could not find or create organization')
-          throw createError
-        }
-      } else {
-        wevnalOrg = newOrg as Organization
-        console.log('[ensureWevnalOrganizationAccess] Created wevnal organization:', wevnalOrg.id)
-      }
+    if (existingMembers && existingMembers.length > 0 && existingMembers[0].organizations) {
+      // 既にwevnal組織のメンバーである
+      wevnalOrg = existingMembers[0].organizations as Organization
+      console.log('[ensureWevnalOrganizationAccess] User is already a member of wevnal organization:', wevnalOrg.id)
+      return wevnalOrg
     }
 
-    if (!wevnalOrg) {
-      console.error('[ensureWevnalOrganizationAccess] wevnalOrg is null')
-      return null
-    }
-
-    // ユーザーがwevnal組織のメンバーかどうか確認
-    console.log('[ensureWevnalOrganizationAccess] Checking if user is member of organization:', wevnalOrg.id)
-    const { data: memberCheck, error: memberCheckError } = await supabase
-      .from('organization_members')
-      .select('*')
-      .eq('organization_id', wevnalOrg.id)
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (memberCheckError) {
-      console.error('[ensureWevnalOrganizationAccess] Failed to check organization membership:', memberCheckError)
-      return null
-    }
-
-    // メンバーでない場合は追加
-    if (!memberCheck || memberCheck.length === 0) {
-      console.log('[ensureWevnalOrganizationAccess] User is not a member, adding...')
-      const { error: addMemberError } = await supabase
+    // wevnal組織が存在しない、またはメンバーでない場合は作成を試みる
+    console.log('[ensureWevnalOrganizationAccess] Creating wevnal organization...')
+    
+    // createOrganization関数を使用して組織を作成（これにより、メンバーも自動的に追加される）
+    try {
+      wevnalOrg = await createOrganization(WEVNAL_NAME, WEVNAL_SLUG, userId)
+      console.log('[ensureWevnalOrganizationAccess] Successfully created wevnal organization:', wevnalOrg.id)
+      return wevnalOrg
+    } catch (createError: any) {
+      // 組織作成に失敗した場合（既に存在する可能性がある）
+      console.warn('[ensureWevnalOrganizationAccess] Failed to create organization, checking if it exists:', createError)
+      
+      // 再度、organization_membersから検索を試みる
+      // 別のユーザーが既に作成している可能性がある
+      const { data: retryMembers, error: retryError } = await supabase
         .from('organization_members')
-        .insert({
-          organization_id: wevnalOrg.id,
-          user_id: userId,
-          role: 'member',
-          joined_at: new Date().toISOString(),
-        })
+        .select(`
+          organization_id,
+          organizations (
+            id,
+            name,
+            slug,
+            plan,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('organizations.slug', WEVNAL_SLUG)
+        .limit(1)
 
-      if (addMemberError) {
-        console.error('[ensureWevnalOrganizationAccess] Failed to add user to wevnal organization:', addMemberError)
-        console.error('[ensureWevnalOrganizationAccess] Error details:', {
-          message: addMemberError.message,
-          details: addMemberError.details,
-          hint: addMemberError.hint,
-          code: addMemberError.code,
-        })
-        return null
+      if (retryError) {
+        console.error('[ensureWevnalOrganizationAccess] Error retrying search:', retryError)
       }
 
-      console.log('[ensureWevnalOrganizationAccess] User added to wevnal organization successfully')
-    } else {
-      console.log('[ensureWevnalOrganizationAccess] User is already a member')
-    }
+      if (retryMembers && retryMembers.length > 0 && retryMembers[0].organizations) {
+        wevnalOrg = retryMembers[0].organizations as Organization
+        console.log('[ensureWevnalOrganizationAccess] Found organization on retry:', wevnalOrg.id)
+        return wevnalOrg
+      }
 
-    console.log('[ensureWevnalOrganizationAccess] Success, returning organization:', wevnalOrg.id)
-    return wevnalOrg
+      // それでも見つからない場合は、エラーを返す
+      console.error('[ensureWevnalOrganizationAccess] Could not find or create organization')
+      return null
+    }
   } catch (error: any) {
     console.error('[ensureWevnalOrganizationAccess] Failed to ensure wevnal organization access:', error)
     console.error('[ensureWevnalOrganizationAccess] Error details:', {
