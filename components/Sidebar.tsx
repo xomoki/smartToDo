@@ -145,6 +145,7 @@ export default function Sidebar({
           className="sidebar-select"
           disabled={currentTeams.length === 0}
         >
+          <option value="ALL">ALL</option>
           {currentTeams.length > 0 ? (
             currentTeams.map((team) => (
               <option key={team} value={team}>
