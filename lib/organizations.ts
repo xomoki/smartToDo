@@ -50,7 +50,17 @@ export async function getOrganizations(userId: string): Promise<Organization[]> 
 
 // 組織を作成
 export async function createOrganization(name: string, slug: string, userId: string): Promise<Organization> {
-  // トランザクション的に処理するため、まず組織を作成
+  console.log('Creating organization:', { name, slug, userId })
+  
+  // まず認証状態を確認
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    throw new Error('認証されていません。ログインしてください。')
+  }
+  
+  console.log('Authenticated user:', user.id)
+
+  // 組織を作成
   const { data: org, error: orgError } = await supabase
     .from('organizations')
     .insert({
@@ -63,8 +73,16 @@ export async function createOrganization(name: string, slug: string, userId: str
 
   if (orgError) {
     console.error('Failed to create organization:', orgError)
+    console.error('Error details:', {
+      message: orgError.message,
+      details: orgError.details,
+      hint: orgError.hint,
+      code: orgError.code,
+    })
     throw orgError
   }
+
+  console.log('Organization created:', org.id)
 
   // 作成者を組織メンバーに追加（adminロール）
   const { error: memberError } = await supabase
@@ -86,6 +104,7 @@ export async function createOrganization(name: string, slug: string, userId: str
     throw memberError
   }
 
+  console.log('Organization member added successfully')
   return org
 }
 
@@ -230,4 +249,3 @@ export async function inviteMember(
   // 実際の実装では、ここでメール送信を行う
   console.log(`Invitation sent to ${email} with token: ${token}`)
 }
-
