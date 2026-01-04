@@ -11,7 +11,7 @@ import AIInsight from '@/components/AIInsight'
 import FocusTaskList from '@/components/FocusTaskList'
 
 export default function DashboardPage() {
-  const [selectedOrganization, setSelectedOrganization] = useState('wevnal')
+  const [selectedOrganization, setSelectedOrganization] = useState<string>('')
   const [selectedTeam, setSelectedTeam] = useState('ALL')
   const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7日前

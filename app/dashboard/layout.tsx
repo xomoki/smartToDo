@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import AuthGuard from '@/components/AuthGuard'
 
 export const metadata: Metadata = {
   title: 'Dashboard - SmartToDo',
@@ -10,6 +11,5 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  return children
+  return <AuthGuard>{children}</AuthGuard>
 }
-

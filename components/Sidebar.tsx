@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, ListTodo, FileText, Settings, Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { LayoutDashboard, ListTodo, FileText, Settings, Plus, LogOut } from 'lucide-react'
+import { getOrganizations, getTeams, Organization, Team } from '@/lib/organizations'
+import { getCurrentUser, signOut } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
 
 interface SidebarProps {
   selectedOrganization: string
@@ -19,34 +22,92 @@ export default function Sidebar({
   onTeamChange 
 }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(false)
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false)
   const [newOrgName, setNewOrgName] = useState('')
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
 
-  const organizations = [
-    'wevnal',
-    'Acme Corp',
-    'Tech Solutions Inc',
-  ]
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const user = await getCurrentUser()
+        if (!user) {
+          router.push('/login')
+          return
+        }
 
-  const teamsByOrg: Record<string, string[]> = {
-    'wevnal': [
-      'Engineering Team A',
-      'Engineering Team B',
-      'Sales Team',
-      'Customer Success',
-    ],
-    'Acme Corp': [
-      'Development Team',
-      'Marketing Team',
-    ],
-    'Tech Solutions Inc': [
-      'Product Team',
-      'Support Team',
-    ],
+        setUserId(user.id)
+
+        // 組織一覧を取得
+        const orgs = await getOrganizations(user.id)
+        setOrganizations(orgs)
+
+        if (orgs.length > 0) {
+          const defaultOrg = orgs[0]
+          onOrganizationChange(defaultOrg.id)
+
+          // チーム一覧を取得
+          const teamList = await getTeams(defaultOrg.id)
+          setTeams(teamList)
+
+          if (teamList.length > 0 && !selectedTeam || selectedTeam === 'ALL') {
+            // デフォルトでALLを選択
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
+  useEffect(() => {
+    if (selectedOrganization && selectedOrganization !== 'ALL') {
+      const loadTeams = async () => {
+        try {
+          const teamList = await getTeams(selectedOrganization)
+          setTeams(teamList)
+        } catch (error) {
+          console.error('Failed to load teams:', error)
+        }
+      }
+      loadTeams()
+    }
+  }, [selectedOrganization])
+
+  const handleCreateOrganization = async () => {
+    if (newOrgName.trim() && userId) {
+      try {
+        const { createOrganization } = await import('@/lib/organizations')
+        const slug = newOrgName.toLowerCase().replace(/\s+/g, '-')
+        const newOrg = await createOrganization(newOrgName, slug, userId)
+        const orgs = await getOrganizations(userId)
+        setOrganizations(orgs)
+        onOrganizationChange(newOrg.id)
+        setNewOrgName('')
+        setIsCreateOrgOpen(false)
+        alert(`組織 "${newOrgName}" を作成しました`)
+      } catch (error: any) {
+        alert(`エラー: ${error.message}`)
+      }
+    }
   }
 
-  const currentTeams = teamsByOrg[selectedOrganization] || []
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push('/login')
+    } catch (error) {
+      console.error('Sign out error:', error)
+    }
+  }
 
   const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -55,15 +116,17 @@ export default function Sidebar({
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },
   ]
 
-  const handleCreateOrganization = () => {
-    if (newOrgName.trim()) {
-      // 実際の実装では、APIを呼び出してOrganizationを作成
-      console.log('Creating organization:', newOrgName)
-      // ここで組織リストを更新する処理を追加
-      setNewOrgName('')
-      setIsCreateOrgOpen(false)
-      alert(`組織 "${newOrgName}" を作成しました（デモモード）`)
-    }
+  if (isLoading) {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <h2 className="sidebar-logo">SmartToDo</h2>
+        </div>
+        <div style={{ padding: '2rem', color: '#9ca3af', textAlign: 'center' }}>
+          読み込み中...
+        </div>
+      </aside>
+    )
   }
 
   return (
@@ -79,19 +142,20 @@ export default function Sidebar({
             value={selectedOrganization}
             onChange={(e) => {
               onOrganizationChange(e.target.value)
-              // 組織が変わったら、最初のチームを選択
-              const newTeams = teamsByOrg[e.target.value] || []
-              if (newTeams.length > 0) {
-                onTeamChange(newTeams[0])
-              }
+              onTeamChange('ALL')
             }}
             className="sidebar-select"
+            disabled={organizations.length === 0}
           >
-            {organizations.map((org) => (
-              <option key={org} value={org}>
-                {org}
-              </option>
-            ))}
+            {organizations.length > 0 ? (
+              organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))
+            ) : (
+              <option value="">組織がありません</option>
+            )}
           </select>
           <button
             className="sidebar-add-button"
@@ -143,18 +207,14 @@ export default function Sidebar({
           value={selectedTeam}
           onChange={(e) => onTeamChange(e.target.value)}
           className="sidebar-select"
-          disabled={currentTeams.length === 0}
+          disabled={teams.length === 0}
         >
           <option value="ALL">ALL</option>
-          {currentTeams.length > 0 ? (
-            currentTeams.map((team) => (
-              <option key={team} value={team}>
-                {team}
-              </option>
-            ))
-          ) : (
-            <option value="">チームがありません</option>
-          )}
+          {teams.map((team) => (
+            <option key={team.id} value={team.id}>
+              {team.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -174,6 +234,16 @@ export default function Sidebar({
           )
         })}
       </nav>
+
+      <div className="sidebar-footer">
+        <button
+          onClick={handleSignOut}
+          className="sidebar-signout-button"
+        >
+          <LogOut size={18} />
+          ログアウト
+        </button>
+      </div>
     </aside>
   )
 }
