@@ -4,7 +4,8 @@ import { useState } from 'react'
 import '../globals.css'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
-import { Search, Filter, SortAsc, SortDesc, Plus, Upload, Edit2, Save, X, FileText } from 'lucide-react'
+import { Search, Filter, SortAsc, SortDesc, Plus, Upload, Edit2, Save, X, FileText, Sparkles } from 'lucide-react'
+import { autoTagTask, estimateTaskTime } from '@/lib/ai'
 
 interface Task {
   id: string
@@ -44,6 +45,8 @@ export default function AllTasksPage() {
     category: '',
     priority: 'medium' as 'low' | 'medium' | 'high',
   })
+  const [isGeneratingCategory, setIsGeneratingCategory] = useState(false)
+  const [isEstimatingTime, setIsEstimatingTime] = useState(false)
   const [bulkTasksText, setBulkTasksText] = useState('')
   
   // 進捗更新関連
@@ -150,6 +153,44 @@ export default function AllTasksPage() {
         {priorityInfo.label}
       </span>
     )
+  }
+
+  const handleGenerateCategory = async () => {
+    if (!newTask.title.trim()) {
+      alert('タイトルを入力してください')
+      return
+    }
+
+    setIsGeneratingCategory(true)
+    try {
+      const category = await autoTagTask(newTask.title, newTask.description, 'manual')
+      setNewTask({ ...newTask, category })
+    } catch (error) {
+      console.error('Failed to generate category:', error)
+    } finally {
+      setIsGeneratingCategory(false)
+    }
+  }
+
+  const handleEstimateTime = async () => {
+    if (!newTask.title.trim()) {
+      alert('タイトルを入力してください')
+      return
+    }
+
+    setIsEstimatingTime(true)
+    try {
+      const estimatedHours = await estimateTaskTime(
+        newTask.title,
+        newTask.description,
+        newTask.category
+      )
+      setNewTask({ ...newTask, estimatedTime: estimatedHours.toString() })
+    } catch (error) {
+      console.error('Failed to estimate time:', error)
+    } finally {
+      setIsEstimatingTime(false)
+    }
   }
 
   const handleAddTask = () => {
@@ -408,18 +449,31 @@ export default function AllTasksPage() {
                   </div>
                   <div className="form-row">
                     <label>見積もり時間（時間）</label>
-                    <input
-                      type="number"
-                      value={newTask.estimatedTime}
-                      onChange={(e) => setNewTask({ ...newTask, estimatedTime: e.target.value })}
-                      placeholder="0"
-                      className="form-input"
-                      min="0"
-                      step="0.5"
-                    />
+                    <div className="form-input-with-button">
+                      <input
+                        type="number"
+                        value={newTask.estimatedTime}
+                        onChange={(e) => setNewTask({ ...newTask, estimatedTime: e.target.value })}
+                        placeholder="0"
+                        className="form-input"
+                        min="0"
+                        step="0.5"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleEstimateTime}
+                        disabled={isEstimatingTime || !newTask.title.trim()}
+                        className="ai-button"
+                        title="AIで見積もり"
+                      >
+                        <Sparkles size={16} />
+                        {isEstimatingTime ? '見積中...' : 'AI見積'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="form-row">
-                    <label>カテゴリー</label>
+                <div className="form-row">
+                  <label>カテゴリー</label>
+                  <div className="form-input-with-button">
                     <input
                       type="text"
                       value={newTask.category}
@@ -427,7 +481,18 @@ export default function AllTasksPage() {
                       placeholder="開発、会議、ドキュメント等"
                       className="form-input"
                     />
+                    <button
+                      type="button"
+                      onClick={handleGenerateCategory}
+                      disabled={isGeneratingCategory || !newTask.title.trim()}
+                      className="ai-button"
+                      title="AIで自動判定"
+                    >
+                      <Sparkles size={16} />
+                      {isGeneratingCategory ? '生成中...' : 'AI判定'}
+                    </button>
                   </div>
+                </div>
                   <div className="form-row">
                     <label>優先度</label>
                     <select

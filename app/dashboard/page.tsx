@@ -42,7 +42,12 @@ export default function DashboardPage() {
             </div>
             <div className="dashboard-grid-right">
               <DailyTrend />
-              <AIInsight />
+              <AIInsight 
+                organizationId={selectedOrganization}
+                teamId={selectedTeam === 'ALL' ? null : selectedTeam}
+                periodStart={dateRange.start}
+                periodEnd={dateRange.end}
+              />
             </div>
           </div>
           
