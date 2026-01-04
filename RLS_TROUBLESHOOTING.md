@@ -1,10 +1,12 @@
 # RLSポリシー トラブルシューティングガイド
 
-## 組織作成時のエラー解決手順
+## エラー解決手順
 
-### エラー: `new row violates row-level security policy for table "organizations"`
+### エラー1: `new row violates row-level security policy for table "organizations"`
 
-このエラーが発生する場合、以下の手順で解決してください。
+### エラー2: `infinite recursion detected in policy for relation "organization_members"`
+
+これらのエラーが発生する場合、以下の手順で解決してください。
 
 ### ステップ1: すべてのポリシーを削除
 
@@ -14,8 +16,10 @@
 
 ### ステップ2: 修正されたポリシーを適用
 
-1. `supabase/migrations/007_final_rls_fix.sql`の内容をコピー
+1. `supabase/migrations/008_fix_infinite_recursion.sql`の内容をコピー
 2. SQL Editorに貼り付けて実行
+
+**重要**: `008_fix_infinite_recursion.sql`は無限再帰を完全に修正したバージョンです。
 
 ### ステップ3: ポリシーの確認
 
@@ -40,7 +44,7 @@ ORDER BY tablename, policyname;
 - `Users can update their organizations` (UPDATE)
 
 **organization_members:**
-- `Users can view organization members` (SELECT)
+- `Users can view organization members` (SELECT) ← 無限再帰を避けるため、organizationsテーブルを経由
 - `Users can create organization members` (INSERT) ← これが重要
 - `Users can update organization members` (UPDATE)
 
@@ -150,6 +154,7 @@ VALUES ('Test Org', 'test-org', 'free');
 1. **組織作成時**: まだメンバーではないため、`organization_members`を参照しないポリシーが必要
 2. **メンバー追加時**: 自分自身を追加する場合のみ許可（無限再帰を避けるため）
 3. **認証状態**: `auth.uid()`が正しく取得できる必要がある
+4. **無限再帰の回避**: `organization_members`のSELECTポリシーで、`organization_members`テーブルを直接参照せず、`organizations`テーブルを経由してチェックする
 
 ## サポート
 

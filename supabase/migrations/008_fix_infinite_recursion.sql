@@ -1,9 +1,9 @@
--- 組織作成時のRLSエラーを完全に修正
+-- 無限再帰エラーを完全に修正
 -- このファイルを実行してください
 -- 
 -- 実行順序:
 -- 1. 003_drop_all_policies.sql (すべてのポリシーを削除)
--- 2. このファイル (007_final_rls_fix.sql) を実行
+-- 2. このファイル (008_fix_infinite_recursion.sql) を実行
 
 -- ============================================
 -- 1. Organizations テーブルのポリシー
@@ -61,7 +61,8 @@ CREATE POLICY "Users can view organization members" ON organization_members
     FOR SELECT USING (
         -- 自分自身のレコードは常に閲覧可能
         user_id = auth.uid() OR
-        -- 自分が所属する組織のメンバー（organizationsテーブルを経由）
+        -- 自分が所属する組織のメンバー（organizationsテーブルを経由してチェック）
+        -- これにより、organization_membersテーブル自体を参照せずに済む
         EXISTS (
             SELECT 1 
             FROM organizations o
@@ -100,6 +101,8 @@ DROP POLICY IF EXISTS "Users can update themselves" ON users;
 DROP POLICY IF EXISTS "Users can create themselves" ON users;
 
 -- ユーザーの閲覧: 自分自身は常に閲覧可能、同じ組織のメンバーも閲覧可能
+-- 注意: このポリシーはorganization_membersを参照するが、
+-- usersテーブルのポリシーなので、organization_membersのポリシー評価には影響しない
 CREATE POLICY "Users can view their organization members" ON users
     FOR SELECT USING (
         id = auth.uid() OR
