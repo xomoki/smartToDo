@@ -1,22 +1,40 @@
 -- Row Level Security (RLS) ポリシーの設定
 -- このファイルをSupabase SQL Editorで実行してください
+-- 
+-- 注意: 既存のポリシーを削除する場合は、先に 003_drop_all_policies.sql を実行してください
 
 -- 既存のポリシーを削除（再実行可能にするため）
+-- すべてのポリシーを削除する場合は、003_drop_all_policies.sql を使用してください
 DROP POLICY IF EXISTS "Users can view their organization data" ON organizations;
 DROP POLICY IF EXISTS "Users can create organizations" ON organizations;
 DROP POLICY IF EXISTS "Users can update their organizations" ON organizations;
 DROP POLICY IF EXISTS "Users can view their teams" ON teams;
 DROP POLICY IF EXISTS "Users can create teams" ON teams;
 DROP POLICY IF EXISTS "Users can update their teams" ON teams;
+DROP POLICY IF EXISTS "Users can view their organization members" ON users;
+DROP POLICY IF EXISTS "Users can update themselves" ON users;
 DROP POLICY IF EXISTS "Users can view organization members" ON organization_members;
 DROP POLICY IF EXISTS "Users can create organization members" ON organization_members;
+DROP POLICY IF EXISTS "Users can update organization members" ON organization_members;
 DROP POLICY IF EXISTS "Users can view team members" ON team_members;
 DROP POLICY IF EXISTS "Users can create team members" ON team_members;
 DROP POLICY IF EXISTS "Users can view tasks" ON tasks;
 DROP POLICY IF EXISTS "Users can create tasks" ON tasks;
 DROP POLICY IF EXISTS "Users can update tasks" ON tasks;
+DROP POLICY IF EXISTS "Users can delete tasks" ON tasks;
 DROP POLICY IF EXISTS "Users can view their time logs" ON task_time_logs;
 DROP POLICY IF EXISTS "Users can create time logs" ON task_time_logs;
+DROP POLICY IF EXISTS "Users can view integrations" ON integrations;
+DROP POLICY IF EXISTS "Users can create integrations" ON integrations;
+DROP POLICY IF EXISTS "Users can update integrations" ON integrations;
+DROP POLICY IF EXISTS "Users can view invitations" ON invitations;
+DROP POLICY IF EXISTS "Users can create invitations" ON invitations;
+DROP POLICY IF EXISTS "Users can view AI learning data" ON ai_learning_data;
+DROP POLICY IF EXISTS "Users can create AI learning data" ON ai_learning_data;
+DROP POLICY IF EXISTS "Users can view notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can manage notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can view AI insights" ON ai_insights;
+DROP POLICY IF EXISTS "Users can create AI insights" ON ai_insights;
 
 -- ============================================
 -- Organizations (組織)
