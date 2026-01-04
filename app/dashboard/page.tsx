@@ -11,6 +11,7 @@ import AIInsight from '@/components/AIInsight'
 import FocusTaskList from '@/components/FocusTaskList'
 
 export default function DashboardPage() {
+  const [selectedOrganization, setSelectedOrganization] = useState('wevnal')
   const [selectedTeam, setSelectedTeam] = useState('Engineering Team A')
   const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7日前
@@ -19,12 +20,18 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-container">
-      <Sidebar selectedTeam={selectedTeam} onTeamChange={setSelectedTeam} />
+      <Sidebar 
+        selectedOrganization={selectedOrganization}
+        selectedTeam={selectedTeam}
+        onOrganizationChange={setSelectedOrganization}
+        onTeamChange={setSelectedTeam}
+      />
       <div className="dashboard-main">
         <Header 
           dateRange={dateRange} 
           onDateRangeChange={setDateRange}
           selectedTeam={selectedTeam}
+          selectedOrganization={selectedOrganization}
         />
         <div className="dashboard-content">
           <KPICards />

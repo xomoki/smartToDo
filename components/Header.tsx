@@ -7,9 +7,10 @@ interface HeaderProps {
   dateRange: { start: Date; end: Date }
   onDateRangeChange: (range: { start: Date; end: Date }) => void
   selectedTeam: string
+  selectedOrganization: string
 }
 
-export default function Header({ dateRange, onDateRangeChange, selectedTeam }: HeaderProps) {
+export default function Header({ dateRange, onDateRangeChange, selectedTeam, selectedOrganization }: HeaderProps) {
   const handleDateChange = (type: 'start' | 'end', value: string) => {
     const newDate = new Date(value)
     if (type === 'start') {
@@ -23,6 +24,7 @@ export default function Header({ dateRange, onDateRangeChange, selectedTeam }: H
     <header className="dashboard-header">
       <div className="dashboard-header-left">
         <h1 className="dashboard-title">Dashboard</h1>
+        <span className="dashboard-org-badge">{selectedOrganization}</span>
         <span className="dashboard-team-badge">{selectedTeam}</span>
       </div>
       <div className="dashboard-header-right">
