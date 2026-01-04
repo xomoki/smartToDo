@@ -16,11 +16,12 @@
 
 ### ステップ2: 修正されたポリシーを適用
 
-1. `supabase/migrations/009_complete_rls_no_recursion.sql`の内容をコピー
+1. `supabase/migrations/010_final_no_recursion_fix.sql`の内容をコピー
 2. SQL Editorに貼り付けて実行
 
-**重要**: `009_complete_rls_no_recursion.sql`は無限再帰を完全に解決した最新バージョンです。
-- `organization_members`のSELECTポリシーは、`organizations`テーブルを経由してチェックしますが、`organization_members`を直接参照しません
+**重要**: `010_final_no_recursion_fix.sql`は無限再帰を完全に解決した最新バージョンです。
+- `organization_members`のSELECTポリシーは、`organizations`テーブルを経由してチェックしますが、`organization_members`を一切参照しません
+- `organizations`テーブルが閲覧可能 = 自分がその組織のメンバーであるため、その組織のメンバーも閲覧可能とみなします
 - これにより、無限再帰が完全に回避されます
 
 ### ステップ3: ポリシーの確認
