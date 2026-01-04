@@ -16,10 +16,12 @@
 
 ### ステップ2: 修正されたポリシーを適用
 
-1. `supabase/migrations/008_fix_infinite_recursion.sql`の内容をコピー
+1. `supabase/migrations/009_complete_rls_no_recursion.sql`の内容をコピー
 2. SQL Editorに貼り付けて実行
 
-**重要**: `008_fix_infinite_recursion.sql`は無限再帰を完全に修正したバージョンです。
+**重要**: `009_complete_rls_no_recursion.sql`は無限再帰を完全に解決した最新バージョンです。
+- `organization_members`のSELECTポリシーは、`organizations`テーブルを経由してチェックしますが、`organization_members`を直接参照しません
+- これにより、無限再帰が完全に回避されます
 
 ### ステップ3: ポリシーの確認
 
@@ -154,7 +156,7 @@ VALUES ('Test Org', 'test-org', 'free');
 1. **組織作成時**: まだメンバーではないため、`organization_members`を参照しないポリシーが必要
 2. **メンバー追加時**: 自分自身を追加する場合のみ許可（無限再帰を避けるため）
 3. **認証状態**: `auth.uid()`が正しく取得できる必要がある
-4. **無限再帰の回避**: `organization_members`のSELECTポリシーで、`organization_members`テーブルを直接参照せず、`organizations`テーブルを経由してチェックする
+4. **無限再帰の回避**: `organization_members`のSELECTポリシーで、`organization_members`テーブルを直接参照せず、`organizations`テーブルのポリシーを利用してチェックする。`organizations`テーブルのSELECTポリシーにより、自分がメンバーである組織のみが返されるため、その組織のメンバーも閲覧可能になる
 
 ## サポート
 
